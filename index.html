@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI여행비서 - 나만의 스마트 맞춤 여행 플래너</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.12)',
+                        'glass-lg': '0 12px 40px 0 rgba(31, 38, 135, 0.18)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 50%, #fce7f3 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .glass-card-dark {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            transition: all 0.25s ease;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.7);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 2.5s infinite ease-in-out;
+        }
+
+        /* Print styling */
+        @media print {
+            body {
+                background: white !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .glass-card {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans text-slate-800 antialiased selection:bg-brand-500 selection:text-white pb-16">
+
+    <header class="no-print sticky top-0 z-40 w-full backdrop-blur-md bg-white/60 border-b border-white/40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                    <i class="fa-solid font-bold fa-plane-departure text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold bg-gradient-to-r from-brand-700 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        AI여행비서
+                    </h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">실시간 날씨 & 맞춤형 여행 코스 추천</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700">
+                    <span class="w-2 h-2 mr-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    OpenWeather API 연동
+                </span>
+                <button onclick="resetApp()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100/50 rounded-lg transition-colors" title="초기화">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+        <div class="text-center my-6 sm:my-8 no-print">
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                어디로 떠나고 싶으신가요? ✈️
+            </h2>
+            <p class="mt-2 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto">
+                여행지, 오늘 기분, 취향을 알려주시면 <strong class="text-brand-600">실시간 날씨 분석</strong>부터 <strong class="text-indigo-600">완벽한 코스</strong>까지 AI가 한 번에 완성해 드립니다.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <section class="lg:col-span-5 no-print">
+                <div class="glass-card rounded-3xl p-6 sm:p-7 shadow-glass relative overflow-hidden border border-white/80">
+                    <div class="absolute -top-12 -right-12 w-32 h-32 bg-brand-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                    
+                    <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b border-slate-200/60 pb-3">
+                        <i class="fa-solid fa-sliders text-brand-500"></i> 여행 조건 설정
+                    </h3>
+
+                    <form id="travelForm" onsubmit="handleGenerate(event)" class="space-y-6">
+                        
+                        <!-- 1. Destination Input & Quick Tags -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                📍 여행지 (Destination) <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="destination" required placeholder="예: 제주도, 도쿄, 파리, 서울, 부산..." 
+                                    class="w-full glass-input rounded-xl px-4 py-3 pl-10 text-slate-800 text-sm focus:outline-none font-medium">
+                                <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-slate-400"></i>
+                            </div>
+                            <!-- Quick Tags -->
+                            <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                <span class="text-xs text-slate-400 self-center mr-1">추천:</span>
+                                <button type="button" onclick="setDestination('제주도')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🏝️ 제주도</button>
+                                <button type="button" onclick="setDestination('도쿄')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🗼 도쿄</button>
+                                <button type="button" onclick="setDestination('파리')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🥐 파리</button>
+                                <button type="button" onclick="setDestination('발리')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🍹 발리</button>
+                                <button type="button" onclick="setDestination('서울')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🏙️ 서울</button>
+                                <button type="button" onclick="setDestination('부산')" class="px-2.5 py-1 bg-white/70 hover:bg-brand-50 hover:text-brand-600 text-slate-600 rounded-lg text-xs border border-slate-200/80 transition-all">🌊 부산</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. Mood Today Dropdown -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                🎭 오늘의 여행 기분 (Mood)
+                            </label>
+                            <select id="mood" class="w-full glass-input rounded-xl px-4 py-3 text-slate-800 text-sm focus:outline-none font-medium cursor-pointer">
+                                <option value="설렘">😊 설렘 (새로운 경험과 흥분)</option>
+                                <option value="힐링/휴식">🌿 힐링/휴식 (지친 일상 탈출, 여유)</option>
+                                <option value="열정/익스트림">🔥 열정/익스트림 (액티비티 & 에너지)</option>
+                                <option value="식도락">😋 식도락 (맛집 탐방 & 미식)</option>
+                                <option value="감성/문화">🎨 감성/문화 (전시, 아늑한 분위기)</option>
+                            </select>
+                        </div>
+
+                        <!-- 3. Interests Badges / Checkboxes -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                ✨ 관심사 (Interests) <span class="text-xs font-normal text-slate-500">(다중 선택 가능)</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2" id="interestsContainer">
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="사진/인생샷" checked class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>📷 사진/인생샷</span>
+                                </label>
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="카페/디저트" checked class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>☕ 카페/디저트</span>
+                                </label>
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="역사/문화" class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>🏛️ 역사/문화</span>
+                                </label>
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="쇼핑" class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>🛍️ 쇼핑</span>
+                                </label>
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="자연/풍경" class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>🌲 자연/풍경</span>
+                                </label>
+                                <label class="interest-badge cursor-pointer flex items-center p-2.5 rounded-xl border border-slate-200/80 bg-white/60 hover:bg-white text-xs font-medium transition-all">
+                                    <input type="checkbox" name="interest" value="야경/술집" class="rounded text-brand-500 focus:ring-brand-400 mr-2">
+                                    <span>🍷 야경/술집</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 4. Budget Slider & Presets -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label class="text-sm font-semibold text-slate-700">
+                                    💰 1인당 예산 (Budget)
+                                </label>
+                                <span id="budgetValue" class="text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md">
+                                    30 만원
+                                </span>
+                            </div>
+                            <input type="range" id="budgetRange" min="5" max="300" step="5" value="30" oninput="updateBudgetValue(this.value)"
+                                class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-500">
+                            
+                            <div class="flex gap-2 mt-2">
+                                <button type="button" onclick="setBudget(10)" class="flex-1 py-1 text-xs border border-slate-200 bg-white/60 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">10만(가성비)</button>
+                                <button type="button" onclick="setBudget(30)" class="flex-1 py-1 text-xs border border-slate-200 bg-white/60 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">30만(표준)</button>
+                                <button type="button" onclick="setBudget(70)" class="flex-1 py-1 text-xs border border-slate-200 bg-white/60 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">70만(여유)</button>
+                                <button type="button" onclick="setBudget(150)" class="flex-1 py-1 text-xs border border-slate-200 bg-white/60 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">150만+(럭셔리)</button>
+                            </div>
+                        </div>
+
+                        <!-- 5. Travel Duration Selector -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                📅 여행 기간 (Duration)
+                            </label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button type="button" onclick="setDuration('당일치기')" id="dur-당일치기" class="duration-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white/60 hover:bg-white text-slate-700 transition-all">당일치기</button>
+                                <button type="button" onclick="setDuration('1박 2일')" id="dur-1박 2일" class="duration-btn py-2 text-xs font-semibold rounded-xl border border-brand-500 bg-brand-50 text-brand-700 transition-all">1박 2일</button>
+                                <button type="button" onclick="setDuration('2박 3일')" id="dur-2박 3일" class="duration-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white/60 hover:bg-white text-slate-700 transition-all">2박 3일</button>
+                                <button type="button" onclick="setDuration('3박 4일 이상')" id="dur-3박 4일 이상" class="duration-btn py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white/60 hover:bg-white text-slate-700 transition-all">3박 4일+</button>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="generateBtn" 
+                            class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-700 hover:to-purple-700 text-white font-bold text-base shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>AI 맞춤 여행 코스 생성하기</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="lg:col-span-7 w-full">
+
+                <!-- Placeholder Initial State -->
+                <div id="initialPlaceholder" class="glass-card rounded-3xl p-10 text-center shadow-glass border border-white/80">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center text-3xl">
+                        <i class="fa-solid fa-compass animate-bounce"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">여행 준비가 되셨나요?</h3>
+                    <p class="text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
+                        왼쪽 폼에서 가고 싶은 여행지와 기분을 선택한 후 <strong>'AI 맞춤 여행 코스 생성하기'</strong> 버튼을 클릭해보세요. 실시간 날씨와 추천 코스가 바로 펼쳐집니다!
+                    </p>
+                    <div class="mt-8 grid grid-cols-3 gap-3 text-left">
+                        <div class="p-3 bg-white/50 rounded-xl border border-white/60">
+                            <div class="text-brand-600 font-bold text-xs mb-1"><i class="fa-solid fa-cloud-sun mr-1"></i>실시간 날씨</div>
+                            <div class="text-xs text-slate-500">기온과 기상조건 분석, 맞춤 옷차림 팁</div>
+                        </div>
+                        <div class="p-3 bg-white/50 rounded-xl border border-white/60">
+                            <div class="text-indigo-600 font-bold text-xs mb-1"><i class="fa-solid fa-map-pin mr-1"></i>핵심 스팟</div>
+                            <div class="text-xs text-slate-500">핫플레이스, 힐링스팟, 로컬 맛집</div>
+                        </div>
+                        <div class="p-3 bg-white/50 rounded-xl border border-white/60">
+                            <div class="text-purple-600 font-bold text-xs mb-1"><i class="fa-solid fa-clock mr-1"></i>타임라인 코스</div>
+                            <div class="text-xs text-slate-500">시간별 일정 및 예상 예산 브레이크다운</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animated Loading State -->
+                <div id="loadingIndicator" class="hidden glass-card rounded-3xl p-12 text-center shadow-glass border border-white/80">
+                    <div class="relative w-24 h-24 mx-auto mb-6">
+                        <div class="absolute inset-0 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin"></div>
+                        <div class="absolute inset-2 rounded-full border-4 border-purple-200 border-b-purple-600 animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-brand-600">
+                            <i class="fa-solid fa-plane text-2xl animate-pulse"></i>
+                        </div>
+                    </div>
+                    <h3 id="loadingText" class="text-lg font-bold text-slate-800 mb-2 animate-pulse-glow">
+                        AI가 맞춤형 여행 코스와 실시간 날씨를 분석 중입니다...
+                    </h3>
+                    <p class="text-xs text-slate-500">OpenWeatherMap API로 기상 데이터를 조회하고 추천 장소를 정제하고 있습니다.</p>
+                </div>
+
+                <!-- Results Output Container -->
+                <div id="resultsContainer" class="hidden space-y-6">
+
+                    <!-- Top Action Bar -->
+                    <div class="glass-card rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print border border-white/80">
+                        <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            AI 맞춤 추천 완료
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="saveItinerary()" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-regular fa-bookmark text-brand-600"></i> 일정 저장
+                            </button>
+                            <button onclick="shareItinerary()" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-share-nodes text-indigo-600"></i> 공유
+                            </button>
+                            <button onclick="printItinerary()" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-print text-purple-600"></i> 인쇄/PDF
+                            </button>
+                            <button onclick="regenerateItinerary()" class="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold rounded-lg border border-brand-200 shadow-sm transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-rotate"></i> 다시 생성
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 1: Real-time Weather & Outfit Tip -->
+                    <div id="weatherCard" class="glass-card rounded-3xl p-6 shadow-glass relative overflow-hidden border border-white/90">
+                        <!-- Dynamic Weather Content Populated by JS -->
+                    </div>
+
+                    <!-- Card 2: Top Recommendations (Hot Place, Healing Spot, Local Restaurant) -->
+                    <div class="space-y-4">
+                        <h4 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-star text-amber-500"></i> AI 엄선 테마별 추천 장소
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="recommendationsGrid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Timeline Travel Itinerary & Budget Breakdown -->
+                    <div class="glass-card rounded-3xl p-6 sm:p-7 shadow-glass border border-white/90">
+                        <div class="flex flex-wrap items-center justify-between border-b border-slate-200/70 pb-4 mb-6 gap-2">
+                            <div>
+                                <h4 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-route text-indigo-600"></i> 맞춤 여행 코스 타임라인
+                                </h4>
+                                <p class="text-xs text-slate-500 mt-0.5" id="itinerarySubtitle">선택하신 일정과 예산에 최적화된 동선입니다.</p>
+                            </div>
+                            <span id="durationBadge" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold border border-indigo-100">
+                                1박 2일
+                            </span>
+                        </div>
+
+                        <!-- Timeline List -->
+                        <div id="timelineContainer" class="space-y-6 relative before:absolute before:inset-0 before:left-3.5 sm:before:left-4 before:w-0.5 before:bg-indigo-100">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Budget Summary Breakdown -->
+                        <div class="mt-8 pt-6 border-t border-slate-200/70">
+                            <h5 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-calculator text-emerald-600"></i> 예상 예산 세부 내역 (1인 기준)
+                            </h5>
+                            <div id="budgetBreakdown" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Guide Friendly Message Note -->
+                    <div class="bg-gradient-to-r from-brand-600 to-indigo-700 text-white rounded-2xl p-5 shadow-md flex items-start gap-4">
+                        <div class="text-3xl">🧭</div>
+                        <div>
+                            <h5 class="font-bold text-sm mb-1">AI 여행 비서의 한마디</h5>
+                            <p id="aiGuideNote" class="text-xs text-brand-100 leading-relaxed">
+                                즐겁고 안전한 여행 되시길 바라며, 현지 사정에 따라 영업시간이나 방문 순서를 유연하게 조정해 보세요!
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Notification Toast Modal -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toastMsg">메시지 내용</span>
+        </div>
+    </div>
+
+    <script>
+        // OpenWeatherMap API Key
+        const WEATHER_API_KEY = "61e7e3407292fdf912e2d960c97ba651";
+
+        // Global State
+        let selectedDuration = '1박 2일';
+        let currentItineraryData = null;
+
+        // City Mapping: Korean to English Query String & Default Coordinates fallback
+        const CITY_MAP = {
+            '제주도': 'Jeju-do', '제주': 'Jeju-do', '제주시': 'Jeju-do', '서귀포': 'Seogwipo',
+            '서울': 'Seoul', '부산': 'Busan', '도쿄': 'Tokyo', '파리': 'Paris', '발리': 'Denpasar',
+            '인천': 'Incheon', '강릉': 'Gangneung', '속초': 'Sokcho', '경주': 'Gyeongju',
+            '전주': 'Jeonju', '여수': 'Yeosu', '오사카': 'Osaka', '후쿠오카': 'Fukuoka',
+            '방콕': 'Bangkok', '다낭': 'Da Nang', '뉴욕': 'New York', '런던': 'London',
+            '싱가포르': 'Singapore', '세부': 'Cebu', '대구': 'Daegu', '대전': 'Daejeon',
+            '광주': 'Gwangju', '춘천': 'Chuncheon'
+        };
+
+        // Form Helper Functions
+        function setDestination(name) {
+            document.getElementById('destination').value = name;
+        }
+
+        function updateBudgetValue(val) {
+            document.getElementById('budgetValue').innerText = `${val} 만원`;
+        }
+
+        function setBudget(val) {
+            document.getElementById('budgetRange').value = val;
+            updateBudgetValue(val);
+        }
+
+        function setDuration(dur) {
+            selectedDuration = dur;
+            document.querySelectorAll('.duration-btn').forEach(btn => {
+                btn.classList.remove('border-brand-500', 'bg-brand-50', 'text-brand-700');
+                btn.classList.add('border-slate-200', 'bg-white/60', 'text-slate-700');
+            });
+            const selectedBtn = document.getElementById(`dur-${dur}`);
+            if (selectedBtn) {
+                selectedBtn.classList.remove('border-slate-200', 'bg-white/60', 'text-slate-700');
+                selectedBtn.classList.add('border-brand-500', 'bg-brand-50', 'text-brand-700');
+            }
+        }
+
+        async function fetchWeatherData(cityName) {
+            const queryCity = CITY_MAP[cityName.trim()] || cityName.trim();
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(queryCity)}&appid=${WEATHER_API_KEY}&units=metric&lang=kr`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('City not found');
+                const data = await res.json();
+                return {
+                    temp: Math.round(data.main.temp),
+                    feelsLike: Math.round(data.main.feels_like),
+                    condition: data.weather[0].description,
+                    icon: data.weather[0].icon,
+                    humidity: data.main.humidity,
+                    wind: data.wind.speed,
+                    cityKor: cityName,
+                    cityEng: data.name
+                };
+            } catch (err) {
+                // Fallback mock weather data if API fails or unknown city
+                return {
+                    temp: 21,
+                    feelsLike: 22,
+                    condition: '맑음/구름 조금',
+                    icon: '02d',
+                    humidity: 55,
+                    wind: 3.2,
+                    cityKor: cityName,
+                    cityEng: queryCity,
+                    isFallback: true
+                };
+            }
+        }
+
+        function getOutfitTip(temp) {
+            if (temp >= 28) {
+                return "👕 민소매, 반팔, 반바지, 린넨 소재 의류와 선글라스, 자외선 차단제를 준비하세요!";
+            } else if (temp >= 23) {
+                return "👕 반팔, 얇은 셔츠, 면바지, 반바지 등 얇고 통기성 좋은 가벼운 차림이 좋습니다.";
+            } else if (temp >= 20) {
+                return "👔 긴팔 티셔츠, 가디건, 후드티, 슬랙스, 청바지가 적당한 선선한 날씨입니다.";
+            } else if (temp >= 17) {
+                return "🧥 니트, 맨투맨, 가디건, 자켓, 얇은 코트를 겹쳐 입는 레이어드 룩을 추천합니다.";
+            } else if (temp >= 12) {
+                return "🧥 자켓, 가죽 자켓, 트렌치코트, 야상, 방풍 점퍼와 긴바지가 필수적입니다.";
+            } else if (temp >= 9) {
+                return "🧥 트렌치코트, 코트, 점퍼, 울 니트와 따뜻한 히트텍 내의를 착용하세요.";
+            } else {
+                return "🧥 패딩, 패딩점퍼, 목도리, 장갑 등 따뜻한 겨울 방한 의류를 준비하세요!";
+            }
+        }
+
+        const SPOT_DATABASE = {
+            '제주도': {
+                hot: { name: "아르떼뮤지엄 제주 & 9.81파크", desc: "몰입형 미디어 아트 전시와 동력 슬로프 카트를 함께 즐기는 최신 필수 스팟" },
+                healing: { name: "비자림 & 안덕계곡", desc: "수령 800년 비자나무 삼림욕과 조용한 곶자왈 숲길에서의 완벽한 힐링" },
+                food: { name: "제주 흑돼지 구이 & 은갈치 조림", desc: "육즙 가득한 흑돼지 오겹살과 특제 양념의 통갈치 조림 맛집" }
+            },
+            '도쿄': {
+                hot: { name: "시부야 스카이 & 아자부다이 힐스", desc: "도쿄 도심 360도 야외 전망대와 최신 랜드마크 스카이라인 뷰" },
+                healing: { name: "신주쿠 교엔 & 메이지 신궁", desc: "도심 속 정갈한 고요함을 선사하는 전통 정원과 숲길 산책" },
+                food: { name: "긴자 프리미엄 스시 & 츠키지 오마카세", desc: "장인의 정성이 담긴 신선한 초밥과 로컬 라멘 명가" }
+            },
+            '파리': {
+                hot: { name: "루브르 박물관 & 에펠탑 샤머드마르스", desc: "세계 최고의 예술품과 센강변에서 즐기는 에펠탑 야경 포토존" },
+                healing: { name: "튈르리 정원 & 몽마르트르 언덕", desc: "파리지앵처럼 카페 라떼 한 잔과 함께 한가로운 햇살을 즐기는 공간" },
+                food: { name: "프렌치 비스트로 & 갓 구운 바게트/크루아상", desc: "달팽이 요리(에스카르고)와 전통 에스프레소, 전통 베이커리" }
+            },
+            '발리': {
+                hot: { name: "스미냐크 비치클럽 & 우붓 발리스윙", desc: "화려한 일몰 석양과 인스타 인생샷을 남기는 라이프스타일 스팟" },
+                healing: { name: "우붓 계단식 논(테갈라랑) & 정글 스파", desc: "초록빛 우림 속에서 느끼는 완벽한 자연 치유와 요가 클래스" },
+                food: { name: "나시 고랭 & 바비 굴링", desc: "현지 향신료의 감칠맛이 폭발하는 인도네시아 대표 전통 요리" }
+            },
+            '서울': {
+                hot: { name: "성수동 카페거리 & 익선동 한옥마을", desc: "트렌디한 팝업스토어와 고즈넉한 한옥 감성이 공존하는 핫플레이스" },
+                healing: { name: "남산 서울타워 둘레길 & 서울숲", desc: "도심 산책로를 따라 느끼는 계절의 변화와 탁 트인 시티뷰" },
+                food: { name: "K-바비큐 & 광장시장 먹거리 투어", desc: "마약김밥, 빈대떡부터 신선한 육회까지 맛보는 서민 미식 기행" }
+            },
+            '부산': {
+                hot: { name: "해운대 블루라인파크 & 광안리 드론쇼", desc: "해변열차를 타고 감상하는 바다와 밤하늘을 수놓는 화려한 드론 라이트 쇼" },
+                healing: { name: "태종대 유원지 & 오륙도 스카이워크", desc: "기암괴석과 기분 좋은 바다 내음이 어우러진 해안 산책로" },
+                food: { name: "부산 돼지국밥 & 신선한 활어회", desc: "진하고 진국인 국밥 한 그릇과 자갈치 시장의 싱싱한 해산물" }
+            }
+        };
+
+        // Fallback Recommendation Generator for unlisted destinations
+        function GenericSpotRecommendation(dest, mood, interests) {
+            return {
+                hot: { name: `${dest} 시내 중심 랜드마크 & 명소`, desc: `${interests.join(', ')} 취향에 꼭 맞춘 트렌디하고 화제성 있는 대표 장소` },
+                healing: { name: `${dest} 대표 자연 공원 & 호수`, desc: `${mood} 기분에 맞춰 편안하게 휴식을 취하고 인근 풍경을 조망하는 쉼터` },
+                food: { name: `${dest} 로컬 시그니처 대표 맛집`, desc: "현지 주민들이 오래도록 사랑해온 전통 미식과 대표 메뉴" }
+            };
+        }
+
+        // Generating Dynamic Timeline based on Duration & Mood
+        function generateTimeline(duration, dest, mood, interests, budget) {
+            const timeline = [];
+
+            if (duration === '당일치기') {
+                timeline.push(
+                    { time: "09:30 AM", title: `📍 ${dest} 도착 및 모닝 커피`, desc: "도착 후 감성 카페에서 커피 한 잔으로 가볍게 여행 시작", cost: "약 1~2만원" },
+                    { time: "11:30 AM", title: "🏛️ 시그니처 핫플레이스 탐방", desc: "가장 인기도 높은 대표 명소 방문 및 인증샷 촬영", cost: "약 1.5~3만원" },
+                    { time: "01:30 PM", title: "😋 점심: 현지 로컬 대표 맛집", desc: "지역 스페셜티 메뉴로 즐기는 풍성한 오찬", cost: "약 2~4만원" },
+                    { time: "03:30 PM", title: "🌿 힐링 산책 & 테마 거리", desc: "풍경이 아름다운 공원이나 산책로에서 여유로운 시간", cost: "무료~1만원" },
+                    { time: "06:30 PM", title: "🍷 디너 & 일몰 감상 후 귀가", desc: "멋진 야경이나 노을을 보며 하루를 마무리하는 식사", cost: "약 3~5만원" }
+                );
+            } else if (duration === '1박 2일') {
+                timeline.push(
+                    { time: "[Day 1] 10:00 AM", title: `📍 ${dest} 도착 및 가벼운 투어`, desc: "주요 중심가 둘러보기 및 인근 탐방", cost: "약 1만원" },
+                    { time: "[Day 1] 12:30 PM", title: "😋 로컬 미식 점심 식사", desc: "지역 유명 맛집에서 대표 시그니처 메뉴 만끽", cost: "약 2~3만원" },
+                    { time: "[Day 1] 03:00 PM", title: "🏨 체크인 & 핫플 메인 체험", desc: "숙소 입실 후 핵심 관광명소 및 전시 감상", cost: "약 3~5만원" },
+                    { time: "[Day 1] 07:00 PM", title: "🍷 낭만적인 야경 & 감성 디너", desc: "야경 명소에서 식사와 함께 즐기는 밤 분위기", cost: "약 4~7만원" },
+                    { time: "[Day 2] 10:00 AM", title: "☕ 감성 카페 브런치 & 힐링", desc: "여유로운 아침 브런치와 인근 산책로 힐링", cost: "약 2~3만원" },
+                    { time: "[Day 2] 02:00 PM", title: "🛍️ 기념품 쇼핑 & 여정 마무리", desc: "특산품 쇼핑 후 기념사진 촬영 및 아쉬운 귀가", cost: "약 3~5만원" }
+                );
+            } else { // 2박 3일 or 3박 4일 이상
+                timeline.push(
+                    { time: "[Day 1] 오후", title: "📍 체크인 및 첫날 로컬 탐방", desc: "여유있게 도시 분위기에 적응하며 맛있는 저녁 식사", cost: "약 4~6만원" },
+                    { time: "[Day 2] 오전", title: "📷 핵심 테마 투어 & 핫스팟", desc: "체력이 가장 좋을 때 핵심 인스타그램 명소 전격 탐방", cost: "약 3~5만원" },
+                    { time: "[Day 2] 오후", title: "🌿 힐링 코스 & 감성 디저트", desc: "자연 속 힐링 스팟 및 시그니처 카페에서 휴식", cost: "약 2~4만원" },
+                    { time: "[Day 2] 저녁", title: "🍷 스페셜 미식 파티 & 야경", desc: "현지 시그니처 코스 요리와 야경 라이프", cost: "약 5~10만원" },
+                    { time: "[Day 3+] 오전~귀가", title: "🛍️ 쇼핑 & 여유로운 마무리", desc: "쇼핑몰 투어, 브런치 및 차 한 잔의 여유 후 이동", cost: "약 3~6만원" }
+                );
+            }
+
+            return timeline;
+        }
+
+        // Calculate estimated budget breakdown
+        function calculateBudgetBreakdown(totalBudget) {
+            const accommodation = Math.round(totalBudget * 0.35);
+            const food = Math.round(totalBudget * 0.35);
+            const activity = Math.round(totalBudget * 0.15);
+            const transport = Math.round(totalBudget * 0.15);
+
+            return [
+                { label: "🏨 숙박비", amount: `${accommodation} 만원`, pct: "35%" },
+                { label: "😋 식비/카페", amount: `${food} 만원`, pct: "35%" },
+                { label: "🎟️ 체험/입장료", amount: `${activity} 만원`, pct: "15%" },
+                { label: "🚕 교통/기타", amount: `${transport} 만원`, pct: "15%" }
+            ];
+        }
+
+        async function handleGenerate(e) {
+            e.preventDefault();
+
+            const destInput = document.getElementById('destination').value.trim();
+            if (!destInput) {
+                showToast("여행지를 입력해주세요!", "warning");
+                return;
+            }
+
+            const mood = document.getElementById('mood').value;
+            const budget = document.getElementById('budgetRange').value;
+
+            // Get selected interests
+            const checkedInterests = Array.from(document.querySelectorAll('input[name="interest"]:checked'))
+                .map(cb => cb.value);
+            
+            if (checkedInterests.length === 0) {
+                checkedInterests.push("자유여행");
+            }
+
+            // Show Loading Indicator
+            document.getElementById('initialPlaceholder').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+
+            // Fetch Real-time Weather
+            const weather = await fetchWeatherData(destInput);
+
+            // Get Spot Recommendation Data
+            const spotData = SPOT_DATABASE[destInput] || GenericSpotRecommendation(destInput, mood, checkedInterests);
+
+            // Generate Timeline
+            const timeline = generateTimeline(selectedDuration, destInput, mood, checkedInterests, budget);
+
+            // Generate Budget Breakdown
+            const budgetBreakdown = calculateBudgetBreakdown(budget);
+
+            // Save in State
+            currentItineraryData = {
+                dest: destInput,
+                mood: mood,
+                interests: checkedInterests,
+                budget: budget,
+                duration: selectedDuration,
+                weather: weather,
+                spots: spotData,
+                timeline: timeline,
+                budgetBreakdown: budgetBreakdown
+            };
+
+            // Simulate AI processing delay for UX smoothness
+            setTimeout(() => {
+                renderResults(currentItineraryData);
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                document.getElementById('resultsContainer').classList.remove('hidden');
+                
+                // Smooth scroll to top of output on mobile
+                if (window.innerWidth < 1024) {
+                    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 800);
+        }
+
+        function renderResults(data) {
+            // 1. Render Weather & Outfit Tip Card
+            const weatherCard = document.getElementById('weatherCard');
+            const outfitTip = getOutfitTip(data.weather.temp);
+            const weatherIconUrl = `https://openweathermap.org/img/wn/${data.weather.icon}@2x.png`;
+
+            weatherCard.innerHTML = `
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-500 to-indigo-500 p-1 flex items-center justify-center shadow-md">
+                            <img src="${weatherIconUrl}" alt="Weather Icon" class="w-12 h-12 filter drop-shadow">
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-2xl font-black text-slate-900">${data.weather.cityKor}</h3>
+                                <span class="text-xs font-semibold px-2 py-0.5 bg-brand-100 text-brand-700 rounded-md">${data.weather.cityEng}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">실시간 기상 현황 • 습도 ${data.weather.humidity}% • 풍속 ${data.weather.wind}m/s</p>
+                        </div>
+                    </div>
+                    <div class="text-right sm:text-right">
+                        <div class="text-3xl font-black text-brand-600">${data.weather.temp}°C</div>
+                        <div class="text-xs font-medium text-slate-600 capitalize">${data.weather.condition} (체감 ${data.weather.feelsLike}°C)</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 text-amber-900 text-xs sm:text-sm font-medium">
+                    <span class="text-lg">💡</span>
+                    <div>
+                        <strong class="font-bold text-amber-950 block mb-0.5">AI 맞춤 옷차림 팁 (Outfit Tip):</strong>
+                        ${outfitTip}
+                    </div>
+                </div>
+            `;
+
+            // 2. Render Top 3 Recommendation Cards
+            const grid = document.getElementById('recommendationsGrid');
+            grid.innerHTML = `
+                <!-- Hot Place -->
+                <div class="bg-gradient-to-br from-rose-50 to-white p-5 rounded-2xl border border-rose-100 shadow-sm hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 text-rose-600 font-bold text-xs uppercase mb-2">
+                        <i class="fa-solid fa-fire text-sm"></i> 핫플레이스 (Hot Place)
+                    </div>
+                    <h5 class="text-base font-extrabold text-slate-900 mb-1.5">${data.spots.hot.name}</h5>
+                    <p class="text-xs text-slate-600 leading-relaxed">${data.spots.hot.desc}</p>
+                </div>
+
+                <!-- Healing Spot -->
+                <div class="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase mb-2">
+                        <i class="fa-solid fa-leaf text-sm"></i> 힐링 스팟 (Healing)
+                    </div>
+                    <h5 class="text-base font-extrabold text-slate-900 mb-1.5">${data.spots.healing.name}</h5>
+                    <p class="text-xs text-slate-600 leading-relaxed">${data.spots.healing.desc}</p>
+                </div>
+
+                <!-- Local Restaurant -->
+                <div class="bg-gradient-to-br from-amber-50 to-white p-5 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md transition-all">
+                    <div class="flex items-center gap-2 text-amber-600 font-bold text-xs uppercase mb-2">
+                        <i class="fa-solid fa-utensils text-sm"></i> 로컬 맛집 (Restaurant)
+                    </div>
+                    <h5 class="text-base font-extrabold text-slate-900 mb-1.5">${data.spots.food.name}</h5>
+                    <p class="text-xs text-slate-600 leading-relaxed">${data.spots.food.desc}</p>
+                </div>
+            `;
+
+            // 3. Render Itinerary Timeline
+            document.getElementById('durationBadge').innerText = data.duration;
+            document.getElementById('itinerarySubtitle').innerText = `${data.dest} • 기분: ${data.mood} • 예산: ${data.budget}만원 코스`;
+
+            const timelineContainer = document.getElementById('timelineContainer');
+            timelineContainer.innerHTML = data.timeline.map((item, idx) => `
+                <div class="relative pl-8 sm:pl-9">
+                    <div class="absolute left-0 top-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-md shadow-indigo-200">
+                        ${idx + 1}
+                    </div>
+                    <div class="bg-white/80 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-1 mb-1">
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${item.time}</span>
+                            <span class="text-xs text-slate-500 font-medium">${item.cost}</span>
+                        </div>
+                        <h5 class="text-sm font-extrabold text-slate-800">${item.title}</h5>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">${item.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            // 4. Render Budget Breakdown Cards
+            const budgetContainer = document.getElementById('budgetBreakdown');
+            budgetContainer.innerHTML = data.budgetBreakdown.map(b => `
+                <div class="bg-white/70 p-3 rounded-xl border border-slate-200/80 text-center">
+                    <div class="text-xs text-slate-500 mb-0.5">${b.label}</div>
+                    <div class="text-sm font-extrabold text-slate-800">${b.amount}</div>
+                    <div class="text-[10px] text-brand-600 font-semibold mt-0.5">${b.pct} 권장</div>
+                </div>
+            `).join('');
+
+            // 5. Friendly Guide Note Update
+            document.getElementById('aiGuideNote').innerText = 
+                `'${data.dest}' 여행 시 현재 날씨(${data.weather.temp}°C)를 참고하여 알맞은 옷차림을 준비하세요. 고객님의 관심사인 [${data.interests.join(', ')}] 테마를 적극 반영하여 동선을 구성했습니다. 즐거운 추억 만드세요!`;
+        }
+
+        function saveItinerary() {
+            if (!currentItineraryData) return;
+            try {
+                const savedList = JSON.parse(localStorage.getItem('ai_travel_saved') || '[]');
+                savedList.push({
+                    id: Date.now(),
+                    date: new Date().toLocaleDateString('ko-KR'),
+                    data: currentItineraryData
+                });
+                localStorage.setItem('ai_travel_saved', JSON.stringify(savedList));
+                showToast("일정이 성공적으로 저장되었습니다!", "success");
+            } catch (err) {
+                showToast("저장 중 오류가 발생했습니다.", "error");
+            }
+        }
+
+        function shareItinerary() {
+            if (!currentItineraryData) return;
+            const textToCopy = `[AI여행비서 추천 여행 코스]\n📍 여행지: ${currentItineraryData.dest}\n📅 기간: ${currentItineraryData.duration}\n🌤️ 날씨: ${currentItineraryData.weather.temp}°C (${currentItineraryData.weather.condition})\n💡 추천 핫플: ${currentItineraryData.spots.hot.name}\n😋 로컬 맛집: ${currentItineraryData.spots.food.name}`;
+            
+            // Clipboard Copy handling
+            const tempInput = document.createElement('textarea');
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showToast("여행 코스 요약 내용이 클립보드에 복사되었습니다!", "success");
+        }
+
+        function printItinerary() {
+            window.print();
+        }
+
+        function regenerateItinerary() {
+            if (!currentItineraryData) return;
+            showToast("여행 코스를 재구성합니다...", "info");
+            handleGenerate(new Event('submit'));
+        }
+
+        function resetApp() {
+            document.getElementById('travelForm').reset();
+            setBudget(30);
+            setDuration('1박 2일');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            document.getElementById('initialPlaceholder').classList.remove('hidden');
+            showToast("설정이 초기화되었습니다.", "info");
+        }
+
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = message;
+            
+            if (type === "warning") {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400";
+            } else if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-xmark text-rose-400";
+            } else if (type === "info") {
+                toastIcon.className = "fa-solid fa-circle-info text-sky-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Initialize defaults on load
+        window.onload = function() {
+            setDuration('1박 2일');
+        };
+    </script>
+</body>
+</html>
